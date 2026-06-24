@@ -47,6 +47,7 @@ import {
   exportCurriculumToExcel,
   exportLessonPlanToPowerPoint
 } from "./utils/exporter";
+import { generateLessonPlanClient, generateCurriculumClient } from "./utils/geminiClient";
 
 // Helper for loading tips during Gemini generation
 const LOADING_TIPS = [
@@ -188,28 +189,45 @@ export default function App() {
     setLoading(true);
     setErrorMsg(null);
     try {
-      const response = await fetch("/api/generate-lesson-plan", {
-        method: "POST",
-        headers: { 
-          "Content-Type": "application/json",
-          "x-gemini-key": userApiKeys.join(","),
-          "x-gemini-model": selectedModel
-        },
-        body: JSON.stringify({
+      let data: LessonPlanResult;
+      
+      if (userApiKeys.length > 0) {
+        // Direct browser-side generation with key rotation and fallback
+        data = await generateLessonPlanClient(
+          userApiKeys,
+          selectedModel,
           teacherInfo,
           lessonInfo,
           lessonOptions,
-          sampleTemplate: templateText,
-          sampleRequirements: requirementsText
-        })
-      });
+          templateText,
+          requirementsText
+        );
+      } else {
+        // Fallback to server proxy
+        const response = await fetch("/api/generate-lesson-plan", {
+          method: "POST",
+          headers: { 
+            "Content-Type": "application/json",
+            "x-gemini-key": "",
+            "x-gemini-model": selectedModel
+          },
+          body: JSON.stringify({
+            teacherInfo,
+            lessonInfo,
+            lessonOptions,
+            sampleTemplate: templateText,
+            sampleRequirements: requirementsText
+          })
+        });
 
-      if (!response.ok) {
-        const errData = await response.json();
-        throw new Error(errData.error || "Gặp sự cố khi kết nối tới máy chủ.");
+        if (!response.ok) {
+          const errData = await response.json().catch(() => ({}));
+          throw new Error(errData.error || `Máy chủ phản hồi với mã lỗi ${response.status}. Vui lòng nhập API Key cá nhân trong Cài đặt nếu máy chủ không chạy.`);
+        }
+
+        data = await response.json();
       }
 
-      const data: LessonPlanResult = await response.json();
       setGeneratedLessonPlan(data);
       
       // Auto-save a backup of the generated plan locally
@@ -229,22 +247,35 @@ export default function App() {
     setLoading(true);
     setErrorMsg(null);
     try {
-      const response = await fetch("/api/generate-curriculum", {
-        method: "POST",
-        headers: { 
-          "Content-Type": "application/json",
-          "x-gemini-key": userApiKeys.join(","),
-          "x-gemini-model": selectedModel
-        },
-        body: JSON.stringify(curriculumInfo)
-      });
+      let data: CurriculumResult;
 
-      if (!response.ok) {
-        const errData = await response.json();
-        throw new Error(errData.error || "Gặp sự cố khi tạo phân phối chương trình.");
+      if (userApiKeys.length > 0) {
+        // Direct browser-side generation with key rotation and fallback
+        data = await generateCurriculumClient(
+          userApiKeys,
+          selectedModel,
+          curriculumInfo
+        );
+      } else {
+        // Fallback to server proxy
+        const response = await fetch("/api/generate-curriculum", {
+          method: "POST",
+          headers: { 
+            "Content-Type": "application/json",
+            "x-gemini-key": "",
+            "x-gemini-model": selectedModel
+          },
+          body: JSON.stringify(curriculumInfo)
+        });
+
+        if (!response.ok) {
+          const errData = await response.json().catch(() => ({}));
+          throw new Error(errData.error || `Máy chủ phản hồi với mã lỗi ${response.status}. Vui lòng nhập API Key cá nhân trong Cài đặt nếu máy chủ không chạy.`);
+        }
+
+        data = await response.json();
       }
 
-      const data: CurriculumResult = await response.json();
       setGeneratedCurriculum(data);
 
       await handleSaveRecordToCloud("curriculum", null, data);
