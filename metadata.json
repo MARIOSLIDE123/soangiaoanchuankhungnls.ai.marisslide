@@ -1,0 +1,8 @@
+{
+  "name": "Soạn Giáo Án AI & Phân Phối Chương Trình",
+  "description": "Ứng dụng hỗ trợ giáo viên soạn giáo án tích hợp năng lực số & AI theo CTGDPT 2018 và tạo bảng phân phối chương trình chi tiết.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
